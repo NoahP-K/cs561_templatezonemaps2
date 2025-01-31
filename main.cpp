@@ -1,5 +1,6 @@
 #include <fstream>
 #include <vector>
+#include <utility>
 #include <iostream>
 #include <random>
 #include <set>
@@ -29,6 +30,23 @@ void loadPointQueries(std::string & input_queries_path, std::vector<int> & queri
 
 }
 
+void loadRangeQueries(std::string & input_queries_path, std::vector<std::pair<int, int>> & queries)
+{
+  //Range queries are stored with the lower bound on the first line and the upper bound on the second.
+  queries.clear();
+  std::ifstream infile(input_queries_path, ios::in);
+  int tmp;
+  int tmp2;
+  while (infile >> tmp) {
+    infile >> tmp2;
+    pair<int, int> pr(tmp, tmp2);
+	  queries.push_back(pr);
+  }
+  // shuffle indexes
+  std::random_shuffle(queries.begin(), queries.end());
+
+}
+
 int main(int argc, char **argv)
 { 
 
@@ -46,7 +64,8 @@ int main(int argc, char **argv)
 
   //1. ----------------------------- initialize zonemap and build -----------------------------
   //build zonemap
-  zonemap<int> zones(data, (uint)data.size() / 100);
+  //std::cout << "ZONE SIZE: " <<  (uint)data.size() / 100 << std::endl;
+  zonemap<int> zones(data, (uint)data.size() / 10);
 
   //2. ----------------------------- point queries -----------------------------
   std::vector<int> queries;
@@ -54,10 +73,12 @@ int main(int argc, char **argv)
 
   auto start_pq = std::chrono::high_resolution_clock::now();
   for (size_t r = 0; r < kRuns; r++) {
+    size_t ptotal = 0;
     for (int pq: queries) {
       // query from zonemaps here 
-      zones.query(pq);
+      ptotal += zones.query(pq);
     }
+    std::cout << "Point query test #" << r << ": " << ptotal << " total matches." << endl;
 
     // shuffle indexes
     std::random_shuffle(queries.begin(), queries.end());
@@ -70,6 +91,23 @@ int main(int argc, char **argv)
   //3. ----------------------------- range queries -----------------------------
   unsigned long long range_query_time = 0;
   // Your code starts here ...
+  std::vector< std::pair<int, int> > rqueries;
+  loadRangeQueries(kRangeQueriesPath, rqueries);
+
+  auto start_rq = std::chrono::high_resolution_clock::now();
+  for(size_t r = 0; r < kRuns; r++) {
+    int rtotal = 0;
+    for(pair<int, int> rq: rqueries) {
+      rtotal += zones.query(rq.first, rq.second).size();
+    }
+    std::cout << "Range query test #" << r << ": " << rtotal << " total matches." << endl;
+
+    std::random_shuffle(rqueries.begin(), rqueries.end());
+  }
+
+  auto stop_rq = std::chrono::high_resolution_clock::now();
+  auto duration_rq = std::chrono::duration_cast<std::chrono::microseconds>(stop_rq - start_rq);
+  range_query_time = duration_rq.count();
 
   std::cout << "Time taken to perform range query from zonemap = " << range_query_time*1.0/kRuns << " microseconds" << endl;
   return 0;

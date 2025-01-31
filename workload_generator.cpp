@@ -98,6 +98,7 @@ void generate_input_data(std::string & output_path, Parameters & params,
 	input_data.resize(params.N);
 	// construct a trivial random generator engine from a time-based seed:
 	unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();	
+	//unsigned seed = 100;
 	std::default_random_engine gen (seed);
 	std::uniform_int_distribution<int>  dist(0, params.UB);
 	std::ofstream output_file(output_path, std::ios::binary);
@@ -145,6 +146,39 @@ void generate_point_queries(std::string & output_path, Parameters & params,
 void generate_range_queries(std::string & output_path, Parameters & params,
 		std::vector<int> & input_data) {
 	// Your code starts here ...
+	unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();	
+	std::default_random_engine gen (seed);
+	/*
+	Randomly generate the lower bound of the query range and get the upper bound by adding range_size to it.
+	To ensure that all ranges generated are within the intended distribution of 2*params.UB or params.UB, 
+	the actual distribution used is that upper bound minus the query range size..
+	*/
+	int range_size = (int) (params.s * params.N);
+	std::uniform_int_distribution<int> dist1(0, (size_t) (2.0*params.UB - range_size));
+	std::uniform_int_distribution<int> dist2(0, input_data.size() - 1 - range_size);
+	std::ofstream output_file(output_path);
+	srand(time(NULL));
+
+	//NOTE: queries are stored in the file on two lines: first the lower bound, then the upper bound.
+	for (size_t i = 0; i < params.R; i++) {
+		if (rand()*1.0/RAND_MAX <= 0.2) {
+			// with 0.2 probability, randomly generate range queries that may or may not reference
+			//nonexistent elements.
+			int lb = dist1(gen);
+			int ub = lb + range_size;
+			output_file << lb << std::endl;
+			output_file << ub << std::endl;
+		} else {
+			// generate existing queries
+			int lb = dist2(gen);
+			int ub = lb + range_size;
+			output_file << lb << std::endl;
+			output_file << ub << std::endl;
+		}
+	}
+	// The above process may produce duplicate range queries. And the number of existing queries
+	// has 0.8*P as the lower bound.
+	output_file.close();
 }
 
 
